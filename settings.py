@@ -13,6 +13,24 @@ from i18n import t
 _tf = TimezoneFinder()
 
 
+async def _send_tz_prompt(update: Update, lang: str) -> None:
+    """Send the location-share keyboard to ask the user for their timezone."""
+    await update.message.reply_text(
+        t(lang, "share_location"),
+        reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton("📍 Share my location", request_location=True)]],
+            one_time_keyboard=True,
+            resize_keyboard=True,
+        ),
+    )
+
+
+async def maybe_prompt_timezone(update: Update, lang: str, user_tz: str) -> None:
+    """In private chat, nudge users who still have UTC to set their timezone."""
+    if user_tz == "UTC" and update.effective_chat.type == "private":
+        await _send_tz_prompt(update, lang)
+
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     with get_session() as s:
         user = upsert_user(s, update.effective_user)
@@ -23,15 +41,10 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         t(lang, "start", name=update.effective_user.first_name),
         reply_markup=main_keyboard(lang),
     )
-    if needs_tz:
-        await update.message.reply_text(
-            t(lang, "share_location"),
-            reply_markup=ReplyKeyboardMarkup(
-                [[KeyboardButton("📍 Share my location", request_location=True)]],
-                one_time_keyboard=True,
-                resize_keyboard=True,
-            ),
-        )
+    # Only prompt for location in private chat — location buttons are confusing in groups
+    is_private = update.effective_chat.type == "private"
+    if needs_tz and is_private:
+        await _send_tz_prompt(update, lang)
 
 
 async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -75,15 +88,17 @@ async def cmd_timezone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     tz_str = context.args[0]
+    # ZoneInfoNotFoundError is a subclass of KeyError — catch both to be safe
     try:
         ZoneInfo(tz_str)
-    except ZoneInfoNotFoundError:
+    except (ZoneInfoNotFoundError, KeyError, Exception):
         await update.message.reply_text(t(lang, "tz_fail", tz=tz_str), parse_mode="Markdown")
         return
 
     with get_session() as s:
         user = upsert_user(s, update.effective_user)
         user.timezone = tz_str
+        s.flush()  # force the UPDATE before commit
 
     await update.message.reply_text(t(lang, "tz_manual", tz=tz_str), parse_mode="Markdown")
 
