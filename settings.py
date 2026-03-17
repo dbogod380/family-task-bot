@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from telegram import KeyboardButton, ReplyKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from timezonefinder import TimezoneFinder
 
@@ -83,9 +83,11 @@ async def cmd_timezone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         lang = upsert_user(s, update.effective_user).language
 
     if not context.args:
-        await update.message.reply_text(
-            "Usage: /timezone <tz>\nExamples: Europe/London, America/New_York, Asia/Tokyo"
-        )
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton(t(lang, "tz_opt_auto"), callback_data="tz:auto"),
+            InlineKeyboardButton(t(lang, "tz_opt_manual"), callback_data="tz:manual"),
+        ]])
+        await update.message.reply_text(t(lang, "tz_choose"), reply_markup=keyboard)
         return
 
     tz_str = context.args[0]

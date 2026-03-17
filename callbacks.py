@@ -5,6 +5,8 @@ from datetime import timedelta
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from telegram import KeyboardButton, ReplyKeyboardMarkup
+
 from db import ShoppingItem, Task, User, get_session
 from helpers import upsert_user, update_streak
 from i18n import t
@@ -19,7 +21,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     action, payload = query.data.split(":", 1)
 
-    if action == "shop_toggle":
+    if action == "tz":
+        await _tz_choice(query, context, payload)
+    elif action == "shop_toggle":
         await _shop_toggle(query, int(payload))
     elif action == "shop_clear":
         await _shop_clear(query, context, int(payload))
@@ -128,6 +132,25 @@ def _lang_from_query(session, query) -> str:
         if user:
             return user.language
     return "en"
+
+
+async def _tz_choice(query, context, sub_action: str) -> None:
+    with get_session() as s:
+        lang = _lang_from_query(s, query)
+
+    if sub_action == "auto":
+        await query.edit_message_text(t(lang, "share_location"))
+        await context.bot.send_message(
+            query.from_user.id,
+            t(lang, "share_location"),
+            reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton("📍 Share my location", request_location=True)]],
+                one_time_keyboard=True,
+                resize_keyboard=True,
+            ),
+        )
+    elif sub_action == "manual":
+        await query.edit_message_text(t(lang, "tz_manual_instructions"), parse_mode="Markdown")
 
 
 async def _notify(context, user_id: int, text: str) -> None:
