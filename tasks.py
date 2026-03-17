@@ -13,7 +13,6 @@ from helpers import upsert_user, render_task, next_recurrence, update_streak
 from i18n import t, day_label
 from nlp import parse_task
 from roles import get_role, get_admin_ids, is_group
-from settings import maybe_prompt_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +88,6 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         task_id = task.id
 
     await status_msg.edit_text(t(lang, "task_added", task=line), parse_mode="Markdown")
-    await maybe_prompt_timezone(update, lang, tz)
 
     if notify_id:
         with get_session() as s:

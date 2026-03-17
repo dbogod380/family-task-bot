@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import KeyboardButton, ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from timezonefinder import TimezoneFinder
 
@@ -57,17 +57,18 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if tz_name:
             user.timezone = tz_name
 
+    # Restore the main keyboard after location is shared
     if tz_name:
         await update.message.reply_text(
             t(lang, "tz_auto", tz=tz_name),
             parse_mode="Markdown",
-            reply_markup=ReplyKeyboardRemove(),
+            reply_markup=main_keyboard(lang),
         )
     else:
         await update.message.reply_text(
             t(lang, "tz_fail", tz="?"),
             parse_mode="Markdown",
-            reply_markup=ReplyKeyboardRemove(),
+            reply_markup=main_keyboard(lang),
         )
 
 
