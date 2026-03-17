@@ -109,15 +109,13 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     with get_session() as s:
         user = upsert_user(s, update.effective_user)
-        tasks = (
-            s.query(Task)
-            .filter(
-                or_(Task.creator_id == user.telegram_id, Task.assignee_id == user.telegram_id),
-                Task.is_done == False,
-            )
-            .order_by(Task.due_date.asc().nullslast())
-            .all()
+        q = s.query(Task).filter(
+            or_(Task.creator_id == user.telegram_id, Task.assignee_id == user.telegram_id),
+            Task.is_done == False,
         )
+        if is_group(update):
+            q = q.filter(Task.chat_id == update.effective_chat.id)
+        tasks = q.order_by(Task.due_date.asc().nullslast()).all()
         if not tasks:
             await update.message.reply_text(t(user.language, "no_pending"))
             return
@@ -130,12 +128,12 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     with get_session() as s:
         user = upsert_user(s, update.effective_user)
-        tasks = (
-            s.query(Task)
-            .filter(or_(Task.creator_id == user.telegram_id, Task.assignee_id == user.telegram_id))
-            .order_by(Task.is_done.asc(), Task.due_date.asc().nullslast())
-            .all()
+        q = s.query(Task).filter(
+            or_(Task.creator_id == user.telegram_id, Task.assignee_id == user.telegram_id)
         )
+        if is_group(update):
+            q = q.filter(Task.chat_id == update.effective_chat.id)
+        tasks = q.order_by(Task.is_done.asc(), Task.due_date.asc().nullslast()).all()
         if not tasks:
             await update.message.reply_text(t(user.language, "no_tasks"))
             return
@@ -153,18 +151,16 @@ async def cmd_week(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         start_utc = now_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
         end_utc = start_utc + timedelta(days=7)
 
-        tasks = (
-            s.query(Task)
-            .filter(
-                or_(Task.creator_id == user.telegram_id, Task.assignee_id == user.telegram_id),
-                Task.is_done == False,
-                Task.due_date != None,
-                Task.due_date >= start_utc,
-                Task.due_date < end_utc,
-            )
-            .order_by(Task.due_date.asc())
-            .all()
+        q = s.query(Task).filter(
+            or_(Task.creator_id == user.telegram_id, Task.assignee_id == user.telegram_id),
+            Task.is_done == False,
+            Task.due_date != None,
+            Task.due_date >= start_utc,
+            Task.due_date < end_utc,
         )
+        if is_group(update):
+            q = q.filter(Task.chat_id == update.effective_chat.id)
+        tasks = q.order_by(Task.due_date.asc()).all()
         if not tasks:
             await update.message.reply_text(t(lang, "week_empty"))
             return
