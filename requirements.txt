@@ -1,0 +1,6 @@
+python-telegram-bot[job-queue]>=20.7
+anthropic>=0.40.0
+sqlalchemy>=2.0
+python-dotenv>=1.0
+timezonefinder>=6.0
+tzdata>=2024.1
